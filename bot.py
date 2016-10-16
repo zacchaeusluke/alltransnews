@@ -87,9 +87,7 @@ def log(message):
         f.write("\n" + t + " " + message)
 
 if __name__ == "__main__":
-    print last_accessed
     tweets = parse_feed()
     for tweet_data in tweets:
         tweet_text = create_tweet(tweet_data)
         tweet(tweet_text)
-    print last_accessed
