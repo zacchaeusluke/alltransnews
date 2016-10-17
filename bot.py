@@ -41,17 +41,24 @@ else:
     last_accessed = 0
     pickle.dump(last_accessed, open("last_accessed.p", "wb"))
 
+#get cache from file
+if os.path.exists("cache.p"):
+    cache = pickle.load( open( "cache.p", "rb" ) )
+else:
+    cache = []
+    pickle.dump(cache, open("cache.p", "wb"))
+
 def parse_feed():
     global last_accessed
     tweet_list = []
     feed_data = feedparser.parse('https://news.google.com/news?q=transgender&scoring=n&output=rss')
     for entry in feed_data.entries:
-        if entry.published_parsed > last_accessed:
+        if entry.published_parsed > last_accessed and str(entry.id) not in cache:
             title = entry.title #get title of article
             out = urlparse.urlparse(str(entry.link)) #parse link url
             q = urlparse.parse_qs(out[4]) #get query parameters
             direct_link = q['url'][0] #get the direct url to article
-            tweet_entry = {'title': title, 'link': direct_link}
+            tweet_entry = {'title': title, 'link': direct_link, 'id': str(entry.id)}
             tweet_list.insert(0, tweet_entry)
     last_accessed = feed_data.feed.published_parsed
     pickle.dump(last_accessed, open("last_accessed.p", "wb"))
@@ -63,7 +70,7 @@ def create_tweet(data):
     return text
 
 
-def tweet(text):
+def tweet(text, id_string):
     """Send out the text as a tweet."""
     # Twitter authentication
     auth = tweepy.OAuthHandler(C_KEY, C_SECRET)
@@ -77,7 +84,7 @@ def tweet(text):
         log(str(e.message[0]['message']))
     else:
         log("Tweeted: " + text)
-
+        cache.append(id_string)
 
 def log(message):
     #Log message to logfile.
@@ -90,4 +97,6 @@ if __name__ == "__main__":
     tweets = parse_feed()
     for tweet_data in tweets:
         tweet_text = create_tweet(tweet_data)
-        tweet(tweet_text)
+        tweet(tweet_text, tweet_data["id"])
+    print cache
+    pickle.dump(cache, open("cache.p", "wb"))
