@@ -66,9 +66,11 @@ def parse_feed():
 
 def create_tweet(data):
     """Create the text of the tweet you want to send."""
-    text = data["title"]+" "+data["link"]
+    title = data["title"]
+    if len(title) > 117: #check tweet isn't too long
+        title = title[:115]+'..'
+    text = title+" "+data["link"]
     return text
-
 
 def tweet(text, id_string):
     """Send out the text as a tweet."""
@@ -81,17 +83,10 @@ def tweet(text, id_string):
     try:
         api.update_status(text)
     except tweepy.error.TweepError as e:
-        log(str(e.message[0]['message']))
+        print str(e.message[0]['message'])
     else:
-        log("Tweeted: " + text)
+        print "Tweeted: " + text
         cache.append(id_string)
-
-def log(message):
-    #Log message to logfile.
-    path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-    with open(os.path.join(path, logfile_name), 'a+') as f:
-        t = strftime("%d %b %Y %H:%M:%S", gmtime())
-        f.write("\n" + t + " " + message)
 
 if __name__ == "__main__":
     tweets = parse_feed()
