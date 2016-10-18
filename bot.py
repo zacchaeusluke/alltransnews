@@ -26,7 +26,8 @@ from time import gmtime, strftime
 from bs4 import BeautifulSoup
 import urllib2, feedparser, urlparse, os.path
 import cPickle as pickle
-import calendar
+import calendar, hashlib, time
+from datetime import datetime
 
 # ====== Individual bot configuration ==========================
 bot_username = 'alltransnews'
@@ -34,16 +35,17 @@ logfile_name = bot_username + ".log"
 
 # ==============================================================
 
-#get last accessed from file
-if os.path.exists("last_accessed.p"):
-    last_accessed = pickle.load( open( "last_accessed.p", "rb" ) )
-else:
-    last_accessed = 0
-    pickle.dump(last_accessed, open("last_accessed.p", "wb"))
+cache_items = []
 
 #get cache from file
 if os.path.exists("cache.p"):
     cache = pickle.load( open( "cache.p", "rb" ) )
+    #clean out old items from cache
+    for item in cache:
+        if (item["added"] - datetime.now()).total_seconds() > 4320:
+            cache.remove(item)
+        else:
+            cache_items.append(item["hash"])
 else:
     cache = []
     pickle.dump(cache, open("cache.p", "wb"))
@@ -53,15 +55,13 @@ def parse_feed():
     tweet_list = []
     feed_data = feedparser.parse('https://news.google.com/news?q=transgender&scoring=n&output=rss')
     for entry in feed_data.entries:
-        if entry.published_parsed > last_accessed and str(entry.id) not in cache:
+        if hashlib.md5(str(entry.id)).hexdigest() not in cache_items:
             title = entry.title #get title of article
             out = urlparse.urlparse(str(entry.link)) #parse link url
             q = urlparse.parse_qs(out[4]) #get query parameters
             direct_link = q['url'][0] #get the direct url to article
             tweet_entry = {'title': title, 'link': direct_link, 'id': str(entry.id)}
             tweet_list.insert(0, tweet_entry)
-    last_accessed = feed_data.feed.published_parsed
-    pickle.dump(last_accessed, open("last_accessed.p", "wb"))
     return tweet_list
 
 def create_tweet(data):
@@ -86,12 +86,14 @@ def tweet(text, id_string):
         print str(e.message[0]['message'])
     else:
         print "Tweeted: " + text
-        cache.append(id_string)
+        cache.append({'hash': hashlib.md5(id_string).hexdigest(), 'added': datetime.now()}) #add hash to cache
 
 if __name__ == "__main__":
     tweets = parse_feed()
     for tweet_data in tweets:
         tweet_text = create_tweet(tweet_data)
         tweet(tweet_text, tweet_data["id"])
-    print cache
-    pickle.dump(cache, open("cache.p", "wb"))
+        time.sleep(30) #wait between sending tweets so we're not flooding
+
+print cache
+pickle.dump(cache, open("cache.p", "wb"))
