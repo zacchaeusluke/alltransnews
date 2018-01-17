@@ -25,7 +25,6 @@
 *.log
 *.sql
 *.sqlite
-*.p
 
 # OS generated files #
 ######################
@@ -41,3 +40,6 @@ Thumbs.db
 venv
 surfacev
 images
+.vscode
+secrets.py
+.git
